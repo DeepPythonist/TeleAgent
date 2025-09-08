@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+# PyCharm
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+*.env
+
+# Telegram Pyrogram sessions
+*.session
+.session
+*.session-journal
+
+# Cache
+.cache/
+*.sqlite3
+*.db
+*.db-journal
+
+# MacOS
+.DS_Store
+
+# Other
+*.bak
+*.swp
