@@ -1,125 +1,199 @@
 import os
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List, Callable, Awaitable
 
-from google import genai
 from dotenv import load_dotenv
-from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram import Client, filters, types
+from google import genai
 
 
 class Settings:
-    def __init__(self):
-        load_dotenv()
-        self.api_hash: str = self._get_env("API_HASH")
-        self.api_id: int = int(self._get_env("API_ID"))
-        self.gemini_token: str = self._get_env("GEMINI_TOKEN")
-        self.admin_id: int = int(self._get_env("CLIENT_ID"))
-        self.session_name: str = self._get_env("SESSION_NAME")
-        self.model_name: str = self._get_env("MODEL")
+    """
+    Manages loading and validation of application settings from environment variables.
+    """
 
-    @staticmethod
-    def _get_env(name: str) -> str:
-        value = os.getenv(name)
-        if value is None:
-            raise ValueError(f"Environment variable {name} is not set.")
-        return value
+    def __init__(self):
+        load_dotenv(dotenv_path='.env')
+        self.api_hash: Optional[str] = os.getenv('API_HASH')
+        self.api_id: Optional[str] = os.getenv('API_ID')
+        self.gemini_token: Optional[str] = os.getenv('GEMINI_TOKEN')
+        self.admin_id: Optional[str] = os.getenv('CLIENT_ID')
+        self.session_name: Optional[str] = os.getenv('SESSION_NAME', 'telegram_bot_session')
+        self.model_name: Optional[str] = os.getenv('MODEL', 'gemini-pro')
+        self._validate()
+
+    def _validate(self):
+        """Ensures all required environment variables are set."""
+        required_vars = ['api_hash', 'api_id', 'gemini_token', 'admin_id']
+        missing_vars = [var for var in required_vars if not getattr(self, var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
 
 class GeminiService:
-    BASE_PROMPT = "پاسخت باید کوتاه و مفید باشه"
+    """
+    Encapsulates all interactions with the Google Gemini API.
+    """
 
     def __init__(self, api_key: str, model_name: str):
         self.client = genai.Client(api_key=api_key)
-        self.model_name = model_name
+        self.model_name = f"models/{model_name}"
+        self.base_prompt_instruction = "شما یک دستیار هوشمند در یک چت تلگرامی هستید. پاسخ‌های شما باید به زبان فارسی، کوتاه و مفید باشد."
 
-    def generate_content(self, rule: str, context: Optional[str] = None) -> str:
-        prompt_parts = [self.BASE_PROMPT, rule]
-        if context:
-            prompt_parts.insert(1, context)
+    def _generate_content(self, prompt: str) -> str:
+        """Private method to handle the API call and exceptions."""
+        try:
+            print(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            print(f"Error generating content from Gemini: {e}")
+            return "متاسفانه در تولید پاسخ خطایی رخ داد."
 
-        full_prompt = "\n\n".join(prompt_parts)
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=full_prompt,
-        )
-        return response.text
+    def generate_simple_response(self, rule: str) -> str:
+        """Generates a response for a direct message."""
+        prompt = f"""
+{self.base_prompt_instruction}
+
+دستور کاربر:
+---
+{rule}
+---
+"""
+        print(prompt)
+        return self._generate_content(prompt)
+
+    def generate_reply_response(self, replies_chain: str, rule: str) -> str:
+        """Generates a response based on a conversation chain."""
+        prompt = f"""
+{self.base_prompt_instruction}
+شما باید بر اساس تاریخچه مکالمه، به آخرین دستور پاسخ دهید.
+
+تاریخچه مکالمه (از قدیمی‌ترین به جدیدترین):
+---
+{replies_chain}
+---
+
+آخرین دستور:
+---
+{rule}
+---
+"""
+        print(prompt)
+        return self._generate_content(prompt)
 
 
 class TelegramBot:
-    def __init__(self, settings: Settings):
+    """
+    The main class for the Telegram bot, handling client setup and message processing.
+    """
+
+    def __init__(self, settings: Settings, gemini_service: GeminiService):
         self.settings = settings
-        self.gemini = GeminiService(
-            api_key=self.settings.gemini_token,
-            model_name=self.settings.model_name
-        )
+        self.gemini = gemini_service
         self.client = Client(
             name=self.settings.session_name,
             api_hash=self.settings.api_hash,
-            api_id=self.settings.api_id,
+            api_id=int(self.settings.api_id)
         )
         self._register_handlers()
 
-    def run(self):
-        self.client.run()
-
     def _register_handlers(self):
-        admin_filter = filters.user(self.settings.admin_id)
+        """Registers message handlers with the Pyrogram client."""
+        admin_filter = filters.user(int(self.settings.admin_id))
 
         self.client.on_message(
-            admin_filter & filters.reply & filters.regex(r"^!hey reply")
+            filters.reply & admin_filter & filters.regex(r'^!hey reply')
         )(self.on_replied_message)
 
         self.client.on_message(
-            admin_filter & filters.text & filters.regex(r"^!hey(?! reply)")
-        )(self.on_standard_message)
-
-    async def _process_command(self, message: Message, rule: str, context: Optional[str] = None):
-        try:
-            await message.edit_text("دارم فکر میکنم ...")
-            response = self.gemini.generate_content(rule, context)
-            await message.edit_text(response)
-        except Exception as e:
-            await message.edit_text(f"خطایی رخ داد: {e}")
+            filters.text & admin_filter & filters.regex(r'^!hey(?! reply)')
+        )(self.on_message)
 
     @staticmethod
-    async def _build_reply_chain(message: Message) -> str:
-        chain = []
-        current_message = message
-        while current_message.reply_to_message:
-            current_message = current_message.reply_to_message
-            chain.append(current_message)
+    async def build_reply_chain(agent: Client, message: types.Message) -> str:
+        """
+        Builds a formatted string representation of a reply chain, using the original proven logic.
+        """
+        messages_list: List[types.Message] = []
+        current_id = message.id
+        chat_id = message.chat.id
 
-        chain.reverse()
+        while True:
+            try:
+                msg = await agent.get_messages(chat_id, current_id)
+                messages_list.append(msg)
+                if not msg.reply_to_message_id:
+                    break
+                current_id = msg.reply_to_message_id
+            except Exception:
+                break
 
-        formatted_lines = []
-        for msg in chain:
-            user = msg.from_user
-            name = user.first_name if user else "ناشناس"
-            timestamp = msg.date.strftime("%H:%M") if msg.date else "نامشخص"
-            text = msg.text or "[بدون متن]"
-            formatted_lines.append(f'{name} | {timestamp} گفت: "{text}"')
+        messages_list.reverse()
 
-        return "\n↪️ ".join(formatted_lines)
+        lines = []
+        for m in messages_list:
+            user_name = getattr(m.from_user, "first_name", "ناشناس")
+            timestamp = m.date.strftime("%H:%M") if isinstance(m.date, datetime) else "نامشخص"
+            text = m.text or "[بدون متن]"
+            lines.append(f'{user_name} | {timestamp} گفت: "{text}"')
 
-    async def on_replied_message(self, _: Client, message: Message):
-        rule = message.text[len("!hey reply"):].strip()
-        if not rule:
-            await message.edit_text("لطفاً یک دستور بعد از `!hey reply` بنویس.")
-            return
+        # Exclude the command message itself from the chain
+        final_lines = lines[:-1] if lines else []
+        return "\n↪️ ".join(final_lines)
 
-        context = await self._build_reply_chain(message)
-        await self._process_command(message, rule, context)
+    async def _process_command(self, agent: Client, message: types.Message,
+                               response_generator: Callable[[], Awaitable[str]]):
+        """Handles the common logic of editing messages while processing a command."""
+        try:
+            await agent.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.id,
+                text='دارم فکر میکنم ...'
+            )
+            response = await response_generator()
+            await agent.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.id,
+                text=response
+            )
+        except Exception as e:
+            print(f"Failed to process command: {e}")
 
-    async def on_standard_message(self, _: Client, message: Message):
-        rule = message.text[len("!hey"):].strip()
-        if not rule:
-            await message.edit_text("لطفاً یک دستور بعد از `!hey` بنویس.")
-            return
-        await self._process_command(message, rule)
+    async def on_replied_message(self, agent: Client, message: types.Message):
+        rule = message.text.split('!hey reply', 1)[1].strip()
+
+        async def generator():
+            full_chain = await self.build_reply_chain(agent, message)
+            return self.gemini.generate_reply_response(full_chain, rule)
+
+        await self._process_command(agent, message, generator)
+
+    async def on_message(self, agent: Client, message: types.Message):
+        rule = message.text.split('!hey', 1)[1].strip()
+
+        async def generator():
+            return self.gemini.generate_simple_response(rule)
+
+        await self._process_command(agent, message, generator)
+
+    def run(self):
+        print("Bot is starting...")
+        self.client.run()
+        print("Bot stopped.")
 
 
 if __name__ == "__main__":
-    app_settings = Settings()
-    bot = TelegramBot(settings=app_settings)
-    bot.run()
+    try:
+        app_settings = Settings()
+        gemini_service = GeminiService(api_key=app_settings.gemini_token, model_name=app_settings.model_name)
+        bot = TelegramBot(settings=app_settings, gemini_service=gemini_service)
+        bot.run()
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
