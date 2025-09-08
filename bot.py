@@ -8,9 +8,6 @@ from google import genai
 
 
 class Settings:
-    """
-    Manages loading and validation of application settings from environment variables.
-    """
 
     def __init__(self):
         load_dotenv(dotenv_path='.env')
@@ -23,7 +20,6 @@ class Settings:
         self._validate()
 
     def _validate(self):
-        """Ensures all required environment variables are set."""
         required_vars = ['api_hash', 'api_id', 'gemini_token', 'admin_id']
         missing_vars = [var for var in required_vars if not getattr(self, var)]
         if missing_vars:
@@ -31,9 +27,6 @@ class Settings:
 
 
 class GeminiService:
-    """
-    Encapsulates all interactions with the Google Gemini API.
-    """
 
     def __init__(self, api_key: str, model_name: str):
         self.client = genai.Client(api_key=api_key)
@@ -41,7 +34,6 @@ class GeminiService:
         self.base_prompt_instruction = "شما یک دستیار هوشمند در یک چت تلگرامی هستید. پاسخ‌های شما باید به زبان فارسی، کوتاه و مفید باشد."
 
     def _generate_content(self, prompt: str) -> str:
-        """Private method to handle the API call and exceptions."""
         try:
             print(prompt)
             response = self.client.models.generate_content(
@@ -54,7 +46,6 @@ class GeminiService:
             return "متاسفانه در تولید پاسخ خطایی رخ داد."
 
     def generate_simple_response(self, rule: str) -> str:
-        """Generates a response for a direct message."""
         prompt = f"""
 {self.base_prompt_instruction}
 
@@ -67,7 +58,6 @@ class GeminiService:
         return self._generate_content(prompt)
 
     def generate_reply_response(self, replies_chain: str, rule: str) -> str:
-        """Generates a response based on a conversation chain."""
         prompt = f"""
 {self.base_prompt_instruction}
 شما باید بر اساس تاریخچه مکالمه، به آخرین دستور پاسخ دهید.
@@ -87,9 +77,6 @@ class GeminiService:
 
 
 class TelegramBot:
-    """
-    The main class for the Telegram bot, handling client setup and message processing.
-    """
 
     def __init__(self, settings: Settings, gemini_service: GeminiService):
         self.settings = settings
@@ -102,7 +89,6 @@ class TelegramBot:
         self._register_handlers()
 
     def _register_handlers(self):
-        """Registers message handlers with the Pyrogram client."""
         admin_filter = filters.user(int(self.settings.admin_id))
 
         self.client.on_message(
@@ -115,9 +101,6 @@ class TelegramBot:
 
     @staticmethod
     async def build_reply_chain(agent: Client, message: types.Message) -> str:
-        """
-        Builds a formatted string representation of a reply chain, using the original proven logic.
-        """
         messages_list: List[types.Message] = []
         current_id = message.id
         chat_id = message.chat.id
@@ -141,13 +124,11 @@ class TelegramBot:
             text = m.text or "[بدون متن]"
             lines.append(f'{user_name} | {timestamp} گفت: "{text}"')
 
-        # Exclude the command message itself from the chain
         final_lines = lines[:-1] if lines else []
         return "\n↪️ ".join(final_lines)
 
     async def _process_command(self, agent: Client, message: types.Message,
                                response_generator: Callable[[], Awaitable[str]]):
-        """Handles the common logic of editing messages while processing a command."""
         try:
             await agent.edit_message_text(
                 chat_id=message.chat.id,
