@@ -16,3 +16,4 @@ Use the following commands:
     ME_LABEL = "Me (Marcel)"
     AUTO_QUERY = "Analyze the conversation above and provide a relevant, natural response as Me (Marcel)."
     ASK_USAGE_ERROR = "Please provide a question or reply to a message to use !ask."
+    AI_FOOTER = "\n\nAnswered by Marcel's AI Assistant with love."

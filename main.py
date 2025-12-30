@@ -99,6 +99,8 @@ async def ask_handler(event):
         else:
              response = await get_response(query, Prompt.SYSTEM)
         
+    response += Text.AI_FOOTER
+
     if reply_to_id:
         await client.send_message(event.chat_id, response, reply_to=reply_to_id)
     else:
