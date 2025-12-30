@@ -1,47 +1,27 @@
-# Python
+# General
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
+.thumbs
 
-# Virtual environment
-.venv/
+# Virtual Environment
 venv/
 env/
-ENV/
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-*.egg
-# PyCharm
-.idea/
-*.iml
-
-# VSCode
-.vscode/
-
-# Logs
-*.log
-
-# Environment variables
+.venv/
 .env
-*.env
 
-# Telegram Pyrogram sessions
+# Telethon
 *.session
-.session
 *.session-journal
 
-# Cache
-.cache/
+# Logs & Databases
+*.log
 *.sqlite3
 *.db
-*.db-journal
 
-# MacOS
-.DS_Store
-
-# Other
-*.bak
+# IDEs
+.idea/
+.vscode/
 *.swp
+*.bak

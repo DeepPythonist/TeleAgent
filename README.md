@@ -1,77 +1,43 @@
-# ربات تلگرام با هوش مصنوعی Gemini
+# TeleAgent
 
-این پروژه یک ربات تلگرامی است که با استفاده از Pyrogram و API هوش مصنوعی Gemini گوگل ساخته شده است. ربات می‌تواند به دستورات متنی پاسخ دهد و همچنین در پاسخ به پیام‌های دیگر (reply)، یک مکالمه را تحلیل کرده و پاسخ مناسب تولید کند.
+A Telegram AI Userbot powered by OpenAI, built with Telethon.
 
-## ✨ ویژگی‌ها
+## Features
 
-* **پاسخ به دستورات مستقیم:** با ارسال پیام‌هایی که با `!hey` شروع می‌شوند، مستقیماً از مدل Gemini پاسخ دریافت کنید.
-* **پاسخ هوشمند به پیام‌ها:** با ریپلای کردن روی یک پیام و استفاده از دستور `!hey reply`، ربات کل زنجیره مکالمه را تحلیل کرده و پاسخ مرتبط تولید می‌کند.
-* **پیکربندی آسان:** تمام تنظیمات از طریق یک فایل `.env` مدیریت می‌شوند.
-* **کدنویسی تمیز:** پروژه با ساختار کلاس‌بندی شده و خوانا نوشته شده است.
+- **!ask <query>**: Replaces your message with the AI's response (handles edits).
+- **!help**: Shows usage instructions.
+- **Deep Context**: Reply to a message, and the bot will read the entire reply chain (history + sender names + timestamps) as context.
+- **Configurable Backend**: Works with OpenAI or any OpenAI-compatible API.
+- **Modular Design**: Clean code structure with `config.py`, `text.py`, and `prompt.py`.
 
-## 🚀 پیش‌نیازها
+## Requirements
 
-* پایتون نسخه ۳.۷ یا بالاتر
-* حساب کاربری تلگرام و کلیدهای API (API ID و API Hash)
-* کلید API از Google AI Studio برای استفاده از Gemini
+- Python 3.8+
+- Telegram API ID and Hash
+- OpenAI API Key
 
-## 🔧 نصب و راه‌اندازی
+## Setup
 
-۱. **کلون کردن پروژه:**
-   ```bash
-   git clone https://github.com/DeepPythonist/TeleAgent.git
-   cd TeleAgent
-   ````
-
-
-۲. **نصب کتابخانه‌های مورد نیاز:**
-توصیه می‌شود که یک محیط مجازی (virtual environment) ایجاد کنید:
-
-```bash
-python -m venv venv
-source venv/bin/activate  # در ویندوز: venv\Scripts\activate
-```
-
-سپس بسته‌های مورد نیاز را نصب کنید:
-
-```bash
-pip install -r requirements.txt
-```
-
-۳. **پیکربندی متغیرهای محیطی:**
-یک کپی از فایل `.env.example` با نام `.env` بسازید:
-
-```bash
-cp .env.example .env
-```
-
-سپس فایل `.env` را با اطلاعات خود ویرایش کنید.
-
-  * `API_HASH` و `API_ID`: از [my.telegram.org](https://my.telegram.org) دریافت کنید.
-  * `GEMINI_TOKEN`: کلید API خود را از [Google AI Studio](https://aistudio.google.com/app/apikey) دریافت کنید.
-  * `CLIENT_ID`: شناسه عددی اکانت تلگرامی که می‌خواهید به عنوان ادمین ربات باشد. می‌توانید این شناسه را از ربات‌هایی مانند `@userinfobot` دریافت کنید.
-  * `SESSION_NAME`: یک نام دلخواه برای فایل نشست (session) پایروگرام.
-  * `MODEL`: نام مدلی که می‌خواهید استفاده کنید (مثلاً `gemini-pro`).
-
-## ⚙️ نحوه استفاده
-
-پس از اجرای ربات با دستور `python bot.py`، می‌توانید از دستورات زیر در هر چتی (خصوصی یا گروهی) استفاده کنید:
-
-  * **دستور مستقیم:**
-    یک پیام جدید بنویسید و سوال یا دستور خود را پس از `!hey` وارد کنید.
-
-    ```bash
-    !hey پایتون بهتر است یا جاوااسکریپت؟
+1.  Clone the repository.
+2.  Rename `.env.example` to `.env` and fill in your credentials.
+    ```env
+    API_ID=your_api_id
+    API_HASH=your_api_hash
+    OPENAI_API_KEY=your_openai_key
+    OPENAI_API_BASE=https://api.openai.com/v1 # Optional: For custom APIs
+    MODEL_NAME=gpt-3.5-turbo # Optional: Select your model
+    OWNER_ID=123456789 # Optional: Strict user ID check
     ```
-
-  * **پاسخ به یک پیام (Reply):**
-    روی پیام مورد نظر ریپلای کنید و دستور خود را پس از `!hey reply` بنویسید. ربات به کل زنجیره پیام‌ها نگاه کرده و پاسخ می‌دهد.
-
+3.  Run the launcher:
     ```bash
-    !hey reply به این مکالمه یک پاسخ طنزآمیز بده
+    python launcher.py
     ```
+    *On the first run, you will be asked to enter your phone number and login code to authenticate.*
 
-ربات پیام شما را ویرایش کرده و پاسخ تولید شده را جایگزین آن می‌کند.
+## Structure
 
-```
-```
+- `main.py`: Core bot logic.
+- `launcher.py`: Helper script to setup and run the bot.
+- `config.py`: Configuration management.
+- `text.py`: Static strings and messages.
+- `prompt.py`: AI system instructions.
